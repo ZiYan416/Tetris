@@ -1,0 +1,5 @@
+{
+  "name": "Neon Tetris Mobile",
+  "description": "A high-fidelity, mobile-first Tetris clone featuring a modern neon aesthetic, touch controls, and smooth animations.",
+  "requestFramePermissions": []
+}
