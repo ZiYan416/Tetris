@@ -1,10 +1,11 @@
 import { ITetromino, TetrominoType } from './types';
 
-export const BOARD_WIDTH = 10;
-export const BOARD_HEIGHT = 20;
+// Default values for initialization only, actual values are calculated dynamically
+export const DEFAULT_WIDTH = 10;
+export const DEFAULT_HEIGHT = 20;
+export const BLOCK_SIZE = 24; // Target pixel size for each block
 
 // Morandi / Rich Muted Palette (RGB values)
-// More sophisticated, less neon, softer on eyes but distinct.
 export const TETROMINOS: Record<string, ITetromino> = {
   0: { shape: [[0]], color: '30, 41, 59' }, // Dark Slate (Background)
   I: {

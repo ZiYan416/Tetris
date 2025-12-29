@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createBoard, checkCollision } from './utils/gameHelpers';
 import { useInterval } from './hooks/useInterval';
-import { BOARD_WIDTH, RANDOM_TETROMINO } from './constants';
+import { RANDOM_TETROMINO, DEFAULT_WIDTH, DEFAULT_HEIGHT, BLOCK_SIZE } from './constants';
 import { Board as BoardType, Player, GameStatus, Difficulty, Language } from './types';
 import Board from './components/Board';
 import Controls from './components/Controls';
@@ -42,6 +42,10 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('zh');
   const t = TRANSLATIONS[language];
 
+  // Dynamic Grid Dimensions
+  const [gridSize, setGridSize] = useState({ rows: DEFAULT_HEIGHT, cols: DEFAULT_WIDTH });
+  const lcdRef = useRef<HTMLDivElement>(null);
+
   const [dropTime, setDropTime] = useState<number | null>(null);
   const [gameStatus, setGameStatus] = useState<GameStatus>(GameStatus.HOME);
   const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.NORMAL);
@@ -51,7 +55,7 @@ const App: React.FC = () => {
   const [level, setLevel] = useState(1);
   const [fastDrop, setFastDrop] = useState(false);
 
-  const [board, setBoard] = useState<BoardType>(createBoard());
+  const [board, setBoard] = useState<BoardType>(createBoard(DEFAULT_HEIGHT, DEFAULT_WIDTH));
   const [player, setPlayer] = useState<Player>({
     pos: { x: 0, y: 0 },
     tetromino: [[0]],
@@ -59,6 +63,65 @@ const App: React.FC = () => {
   });
 
   const appRef = useRef<HTMLDivElement>(null);
+
+  // --- Dynamic Resizing Logic ---
+  useEffect(() => {
+    // Function to calculate grid based on container size
+    const calculateGrid = () => {
+      if (lcdRef.current && gameStatus === GameStatus.HOME) {
+        const { clientWidth, clientHeight } = lcdRef.current;
+        
+        // Precise Calculation of Grid Dimensions
+        const GAP = 1;
+        const CELL_PITCH = BLOCK_SIZE + GAP; // 25px
+        
+        // Horizontal Overhead: 
+        // 2px padding-left/right + 1px border-left/right = 6px.
+        // Increased to 12px for safety buffer.
+        const H_OVERHEAD = 12; 
+        
+        // Vertical Overhead:
+        // 2px padding-top/bottom = 4px.
+        // Increased to 12px for safety buffer to prevent bottom row clipping.
+        // This ensures that even if the footer layout shifts slightly, we don't cut off the last row.
+        const V_OVERHEAD = 12;
+
+        const cols = Math.floor((clientWidth - H_OVERHEAD) / CELL_PITCH);
+        const rows = Math.floor((clientHeight - V_OVERHEAD) / CELL_PITCH);
+        
+        // Ensure reasonable minimums
+        const safeCols = Math.max(8, cols);
+        const safeRows = Math.max(10, rows);
+
+        // Only update if dimensions actually changed to avoid render loops
+        setGridSize(prev => {
+            if (prev.cols !== safeCols || prev.rows !== safeRows) {
+                // Side effect in setState callback is generally safe here as we need synchronized update
+                setBoard(createBoard(safeRows, safeCols));
+                return { rows: safeRows, cols: safeCols };
+            }
+            return prev;
+        });
+      }
+    };
+
+    // Use ResizeObserver to detect container size changes (e.g. when Footer renders/shifts)
+    // This is more robust than window.resize for Flexbox layouts
+    const observer = new ResizeObserver(() => {
+        // Wrap in requestAnimationFrame to avoid "ResizeObserver loop limit exceeded"
+        requestAnimationFrame(calculateGrid);
+    });
+
+    if (lcdRef.current) {
+        observer.observe(lcdRef.current);
+    }
+    
+    // Initial calculation
+    calculateGrid();
+
+    return () => observer.disconnect();
+  }, [gameStatus]); // Removed gridSize dependency to prevent loops, added logic inside setter
+
 
   // Speed Calculation
   const calcDropTime = useCallback((lvl: number) => {
@@ -75,8 +138,18 @@ const App: React.FC = () => {
     return Math.max(100, baseSpeed / (lvl * multiplier + 0.2));
   }, [difficulty]);
 
+  const resetPlayer = useCallback(() => {
+    // Dynamically center the player based on current grid columns
+    setPlayer({
+      pos: { x: Math.floor(gridSize.cols / 2) - 2, y: 0 },
+      tetromino: RANDOM_TETROMINO().shape,
+      collided: false,
+    });
+  }, [gridSize.cols]);
+
   const startGame = () => {
-    setBoard(createBoard());
+    // Create board with current dimensions
+    setBoard(createBoard(gridSize.rows, gridSize.cols));
     setDropTime(calcDropTime(1));
     resetPlayer();
     setScore(0);
@@ -102,15 +175,8 @@ const App: React.FC = () => {
     setDropTime(null);
   };
 
-  const resetPlayer = useCallback(() => {
-    setPlayer({
-      pos: { x: BOARD_WIDTH / 2 - 2, y: 0 },
-      tetromino: RANDOM_TETROMINO().shape,
-      collided: false,
-    });
-  }, []);
-
   const drop = () => {
+    // Increase level every 10 cleared rows
     if (rows > (level + 1) * 10) {
       setLevel((prev) => prev + 1);
       if (!fastDrop) {
@@ -197,6 +263,7 @@ const App: React.FC = () => {
 
   React.useEffect(() => {
     const updateBoard = (prevBoard: BoardType): BoardType => {
+      // Create new board
       const newBoard = prevBoard.map((row) =>
         row.map((cell) => (cell[1] === 'clear' ? [0, 'clear'] : cell))
       ) as BoardType;
@@ -204,6 +271,7 @@ const App: React.FC = () => {
       player.tetromino.forEach((row, y) => {
         row.forEach((value, x) => {
           if (value !== 0) {
+            // Check boundaries based on dynamic board size
             if (
               newBoard[y + player.pos.y] &&
               newBoard[y + player.pos.y][x + player.pos.x]
@@ -231,6 +299,7 @@ const App: React.FC = () => {
       const sweptBoard = newBoard.reduce((acc, row) => {
         if (row.findIndex((cell) => cell[0] === 0) === -1) {
           rowsCleared += 1;
+          // Dynamically fill new rows based on current cols
           acc.unshift(new Array(newBoard[0].length).fill([0, 'clear']));
           return acc;
         }
@@ -256,17 +325,17 @@ const App: React.FC = () => {
   const renderScreenContent = () => {
     if (gameStatus === GameStatus.HOME) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-slate-800 space-y-4 animate-in fade-in">
-                <h1 className="text-4xl font-black tracking-tighter text-slate-800/80">{t.title}</h1>
-                <div className="flex gap-2">
+            <div className="flex flex-col items-center justify-center h-full text-slate-800 space-y-6 animate-in fade-in p-4 text-center">
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-slate-800/80">{t.title}</h1>
+                <div className="flex flex-wrap justify-center gap-2">
                     {(['EASY', 'NORMAL', 'HARD'] as Difficulty[]).map((d) => (
                         <button
                             key={d}
                             onClick={() => setDifficulty(d)}
-                            className={`px-2 py-1 text-[10px] font-bold rounded border-2 ${
+                            className={`px-3 py-1.5 text-xs font-bold rounded border-2 transition-all ${
                                 difficulty === d 
                                 ? 'bg-slate-700 text-white border-slate-700' 
-                                : 'text-slate-500 border-slate-300'
+                                : 'text-slate-500 border-slate-300 hover:border-slate-400'
                             }`}
                         >
                             {d === 'EASY' ? t.diffEasy : d === 'NORMAL' ? t.diffNormal : t.diffHard}
@@ -275,21 +344,27 @@ const App: React.FC = () => {
                 </div>
                 <button 
                     onClick={startGame}
-                    className="animate-pulse mt-4 px-6 py-2 bg-slate-800 text-[#9ead86] font-bold rounded-sm text-sm"
+                    className="animate-pulse px-8 py-3 bg-slate-800 text-[#9ead86] font-bold rounded-sm text-sm sm:text-base hover:bg-slate-700"
                 >
                     {t.start}
                 </button>
                 <div className="absolute top-2 right-2">
-                    <button onClick={() => setLanguage(l => l === 'zh' ? 'en' : 'zh')}>
-                        <Globe size={16} className="text-slate-400" />
+                    <button onClick={() => setLanguage(l => l === 'zh' ? 'en' : 'zh')} className="p-1">
+                        <Globe size={18} className="text-slate-500 hover:text-slate-800" />
                     </button>
+                </div>
+                
+                {/* Debug Info */}
+                <div className="absolute bottom-2 text-[9px] text-slate-400 font-mono">
+                    GRID: {gridSize.cols}x{gridSize.rows}
                 </div>
             </div>
         );
     }
     
     return (
-        <div className="relative w-full h-full">
+        // Flex center ensures the dynamic board is centered if it doesn't fill pixel-perfectly
+        <div className="relative w-full h-full flex items-center justify-center">
             <Board board={board} />
             
             {(gameStatus === GameStatus.PAUSED || gameStatus === GameStatus.GAME_OVER) && (
@@ -298,12 +373,12 @@ const App: React.FC = () => {
                     {gameStatus === GameStatus.GAME_OVER && (
                         <p className="font-mono text-xl">{score}</p>
                     )}
-                    <div className="flex flex-col gap-2 w-full">
+                    <div className="flex flex-col gap-2 w-full max-w-[200px]">
                          {gameStatus === GameStatus.PAUSED && (
-                             <button onClick={pauseGame} className="bg-[#9ead86] text-slate-800 p-2 font-bold text-xs rounded-sm flex items-center justify-center gap-2"><Play size={12}/> {t.resume}</button>
+                             <button onClick={pauseGame} className="bg-[#9ead86] text-slate-800 p-2.5 font-bold text-xs rounded-sm flex items-center justify-center gap-2 hover:bg-[#b0bf98]"><Play size={14}/> {t.resume}</button>
                          )}
-                         <button onClick={startGame} className="border-2 border-[#9ead86] text-[#9ead86] p-2 font-bold text-xs rounded-sm flex items-center justify-center gap-2"><RefreshCw size={12}/> {t.restart}</button>
-                         <button onClick={quitToHome} className="text-[#9ead86]/60 p-2 font-bold text-xs flex items-center justify-center gap-2"><Home size={12}/> {t.home}</button>
+                         <button onClick={startGame} className="border-2 border-[#9ead86] text-[#9ead86] p-2.5 font-bold text-xs rounded-sm flex items-center justify-center gap-2 hover:bg-[#9ead86]/10"><RefreshCw size={14}/> {t.restart}</button>
+                         <button onClick={quitToHome} className="text-[#9ead86]/70 p-2 font-bold text-xs flex items-center justify-center gap-2 hover:text-[#9ead86]"><Home size={14}/> {t.home}</button>
                     </div>
                 </div>
             )}
@@ -313,66 +388,73 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col h-[100dvh] w-full bg-slate-900 items-center justify-center p-4 overflow-hidden touch-none" 
+      className="flex flex-col h-[100dvh] w-full bg-slate-900 items-center justify-center p-2 overflow-hidden touch-none" 
       ref={appRef}
       onKeyDown={handleKeyDown} 
       onKeyUp={handleKeyUp}
       tabIndex={0}
     >
-        {/* CONSOLE BODY */}
-        <div className="relative w-full max-w-[360px] bg-[#e4e4e7] rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5),inset_0_-8px_0_rgba(0,0,0,0.1),inset_0_4px_0_rgba(255,255,255,0.5)] p-5 pb-8 flex flex-col gap-6 select-none border border-slate-300">
+        {/* CONSOLE BODY - Responsive Container */}
+        <div className="relative flex flex-col w-full h-full max-w-lg bg-[#e4e4e7] rounded-[2rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5),inset_0_-8px_0_rgba(0,0,0,0.1),inset_0_4px_0_rgba(255,255,255,0.5)] p-4 sm:p-5 border border-slate-300 select-none">
             
-            {/* SCREEN LENS (Dark Grey Area) */}
-            <div className="bg-[#27272a] rounded-t-xl rounded-b-[2rem] p-6 pb-2 shadow-inner relative flex flex-col items-center">
+            {/* SCREEN LENS Section - Flex Grow to take available space */}
+            <div className="flex-1 min-h-0 bg-[#27272a] rounded-t-xl rounded-b-[2rem] p-4 sm:p-5 flex flex-col shadow-inner relative">
                 
-                {/* Decorative text on lens */}
-                <div className="w-full flex justify-between text-[10px] font-bold text-slate-500 mb-1 px-1">
+                {/* Header Info */}
+                <div className="flex-none flex justify-between text-[10px] font-bold text-slate-500 mb-2 px-1">
                     <span className="flex items-center gap-1"><Battery size={10}/> BATTERY</span>
                     <span className="tracking-widest text-slate-600">DOT MATRIX</span>
                 </div>
 
-                {/* LCD SCREEN (The Game) */}
-                <div className="relative bg-[#9ead86] w-[240px] h-[400px] border-4 border-[#8b9c72] shadow-inner flex items-center justify-center overflow-hidden">
-                    {/* Shadow overlay for LCD effect */}
+                {/* LCD SCREEN Wrapper - Flex Grow to fill Lens */}
+                <div 
+                    ref={lcdRef}
+                    className="flex-1 min-h-0 relative w-full bg-[#9ead86] border-4 border-[#8b9c72] shadow-inner rounded-sm overflow-hidden flex flex-col"
+                >
+                    {/* Inner Shadow & Scanlines */}
                     <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.1)] z-20"></div>
-                    {/* Scanline effect */}
                     <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] z-10 background-size-[100%_2px,3px_100%] bg-[length:100%_4px,3px_100%]"></div>
                     
-                    {renderScreenContent()}
+                    {/* The Content */}
+                    <div className="flex-1 w-full h-full relative z-30">
+                        {renderScreenContent()}
+                    </div>
                 </div>
                 
-                {/* Score / Level text printed on lens below screen */}
-                <div className="w-full max-w-[240px] mt-2 flex justify-between items-end text-[#8b9c72]">
+                {/* Footer Info */}
+                <div className="flex-none mt-2 flex justify-between items-end text-[#8b9c72]">
                     <div className="flex flex-col">
                          <span className="text-[9px] font-bold tracking-widest text-slate-500">{t.score}</span>
-                         <span className="font-mono text-sm text-rose-400">{score.toString().padStart(6, '0')}</span>
+                         <span className="font-mono text-sm text-rose-400 leading-none">{score.toString().padStart(6, '0')}</span>
                     </div>
-                    <h3 className="text-slate-600 font-bold italic tracking-tighter text-lg">NEON<span className="text-rose-400">BLOCKS</span></h3>
+                    <h3 className="text-slate-600 font-bold italic tracking-tighter text-lg hidden sm:block">NEON<span className="text-rose-400">BLOCKS</span></h3>
                     <div className="flex flex-col text-right">
                          <span className="text-[9px] font-bold tracking-widest text-slate-500">{t.level}</span>
-                         <span className="font-mono text-sm text-indigo-400">{level}</span>
+                         <span className="font-mono text-sm text-indigo-400 leading-none">{level}</span>
                     </div>
                 </div>
             </div>
 
-            {/* CONTROLS AREA */}
-            <Controls 
-                onMoveLeft={() => movePlayer(-1)}
-                onMoveRight={() => movePlayer(1)}
-                onRotate={playerRotate}
-                onSoftDropStart={startSoftDrop}
-                onSoftDropEnd={stopSoftDrop}
-                onPause={pauseGame}
-                isPlaying={true} 
-                isPaused={gameStatus === GameStatus.PAUSED}
-            />
+            {/* CONTROLS AREA - Fixed height (doesn't shrink) */}
+            <div className="flex-none pt-2 sm:pt-4">
+                <Controls 
+                    onMoveLeft={() => movePlayer(-1)}
+                    onMoveRight={() => movePlayer(1)}
+                    onRotate={playerRotate}
+                    onSoftDropStart={startSoftDrop}
+                    onSoftDropEnd={stopSoftDrop}
+                    onPause={pauseGame}
+                    isPlaying={true} 
+                    isPaused={gameStatus === GameStatus.PAUSED}
+                />
+            </div>
 
-            {/* Speaker Grille (Decorative) */}
-            <div className="absolute bottom-6 right-6 flex gap-1 -rotate-12 opacity-20">
-                <div className="w-1.5 h-12 rounded-full bg-slate-900"></div>
-                <div className="w-1.5 h-12 rounded-full bg-slate-900"></div>
-                <div className="w-1.5 h-12 rounded-full bg-slate-900"></div>
-                <div className="w-1.5 h-12 rounded-full bg-slate-900"></div>
+            {/* Speaker Grille */}
+            <div className="absolute bottom-6 right-5 sm:right-6 flex gap-1.5 -rotate-12 opacity-20 pointer-events-none">
+                <div className="w-1 h-10 sm:h-12 rounded-full bg-slate-900"></div>
+                <div className="w-1 h-10 sm:h-12 rounded-full bg-slate-900"></div>
+                <div className="w-1 h-10 sm:h-12 rounded-full bg-slate-900"></div>
+                <div className="w-1 h-10 sm:h-12 rounded-full bg-slate-900"></div>
             </div>
 
         </div>
