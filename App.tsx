@@ -2,10 +2,11 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createBoard, checkCollision } from './utils/gameHelpers';
 import { useInterval } from './hooks/useInterval';
 import { RANDOM_TETROMINO, DEFAULT_WIDTH, DEFAULT_HEIGHT, BLOCK_SIZE, THEMES } from './constants';
-import { Board as BoardType, Player, GameStatus, Difficulty, Language, ThemeType } from './types';
+import { Board as BoardType, Player, GameStatus, Difficulty, Language, ThemeType, HighScore } from './types';
 import Board from './components/Board';
 import Controls from './components/Controls';
-import { Play, RefreshCw, Home, Globe, Battery, Zap, Sun } from 'lucide-react';
+import { Play, RefreshCw, Home, Globe, Battery, Zap, Sun, Trophy, Upload, ChevronLeft, Loader2 } from 'lucide-react';
+import { supabase } from './supabaseClient';
 
 const TRANSLATIONS = {
   zh: {
@@ -17,12 +18,22 @@ const TRANSLATIONS = {
     paused: '暂停',
     gameOver: '游戏结束',
     score: '分数',
+    highScore: '最高分',
     level: '等级',
     diffEasy: '简单',
     diffNormal: '普通',
     diffHard: '困难',
     themeRetro: '复古',
     themeCyber: '赛博',
+    leaderboard: '排行榜',
+    upload: '上传分数',
+    uploaded: '已上传',
+    placeholder: '输入名字',
+    rank: '排名',
+    name: '名字',
+    loading: '加载中...',
+    noData: '暂无数据',
+    error: '错误',
   },
   en: {
     title: 'TETRIS',
@@ -33,12 +44,22 @@ const TRANSLATIONS = {
     paused: 'PAUSED',
     gameOver: 'GAME OVER',
     score: 'SCORE',
+    highScore: 'HI-SCORE',
     level: 'LEVEL',
     diffEasy: 'EASY',
     diffNormal: 'NORM',
     diffHard: 'HARD',
     themeRetro: 'RETRO',
     themeCyber: 'CYBER',
+    leaderboard: 'RANKING',
+    upload: 'UPLOAD',
+    uploaded: 'UPLOADED',
+    placeholder: 'Enter Name',
+    rank: 'RANK',
+    name: 'NAME',
+    loading: 'LOADING...',
+    noData: 'NO DATA',
+    error: 'ERROR',
   }
 };
 
@@ -60,6 +81,14 @@ const App: React.FC = () => {
   const [level, setLevel] = useState(1);
   const [fastDrop, setFastDrop] = useState(false);
 
+  // Supabase State
+  const [globalHighScore, setGlobalHighScore] = useState<number>(0);
+  const [leaderboard, setLeaderboard] = useState<HighScore[]>([]);
+  const [playerName, setPlayerName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isUploaded, setIsUploaded] = useState(false);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+
   const [board, setBoard] = useState<BoardType>(createBoard(DEFAULT_HEIGHT, DEFAULT_WIDTH));
   const [player, setPlayer] = useState<Player>({
     pos: { x: 0, y: 0 },
@@ -72,12 +101,14 @@ const App: React.FC = () => {
   // --- Dynamic Resizing Logic ---
   useEffect(() => {
     const calculateGrid = () => {
-      if (lcdRef.current && gameStatus === GameStatus.HOME) {
+      if (lcdRef.current) {
+        // We calculate this even if not strictly at HOME to ensure resizing works if window changes
+        // but we only trigger board recreation logic if strictly needed or at appropriate times
         const { clientWidth, clientHeight } = lcdRef.current;
         
         const GAP = 1;
         const CELL_PITCH = BLOCK_SIZE + GAP; 
-        const H_OVERHEAD = 8; // Reduced overhead
+        const H_OVERHEAD = 8; 
         const V_OVERHEAD = 8; 
 
         const cols = Math.floor((clientWidth - H_OVERHEAD) / CELL_PITCH);
@@ -86,9 +117,13 @@ const App: React.FC = () => {
         const safeCols = Math.max(8, cols);
         const safeRows = Math.max(12, rows); 
 
+        // Only update if dimensions actually changed
         setGridSize(prev => {
             if (prev.cols !== safeCols || prev.rows !== safeRows) {
-                setBoard(createBoard(safeRows, safeCols));
+                // If we are at HOME, we can safely reset the board to fit new dimensions
+                if (gameStatus === GameStatus.HOME || gameStatus === GameStatus.LEADERBOARD) {
+                    setBoard(createBoard(safeRows, safeCols));
+                }
                 return { rows: safeRows, cols: safeCols };
             }
             return prev;
@@ -108,6 +143,59 @@ const App: React.FC = () => {
 
     return () => observer.disconnect();
   }, [gameStatus]);
+
+  // --- Supabase Effects ---
+
+  // 1. Fetch highest score for current difficulty (Global High Score)
+  useEffect(() => {
+    const fetchHighScore = async () => {
+      try {
+        const { data, error } = await supabase
+            .from('high_scores')
+            .select('score')
+            .eq('difficulty', difficulty)
+            .order('score', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (!error && data) {
+            setGlobalHighScore(data.score);
+        } else {
+            // If no data or error (e.g. table empty), default to 0
+            setGlobalHighScore(0);
+        }
+      } catch (e) {
+        console.error("Supabase connection error:", e);
+      }
+    };
+
+    fetchHighScore();
+  }, [difficulty]);
+
+  // 2. Fetch Leaderboard Data
+  const fetchLeaderboard = useCallback(async () => {
+      setLoadingLeaderboard(true);
+      const { data, error } = await supabase
+        .from('high_scores')
+        .select('*')
+        .eq('difficulty', difficulty)
+        .order('score', { ascending: false })
+        .limit(10);
+      
+      setLoadingLeaderboard(false);
+      if (!error && data) {
+          setLeaderboard(data);
+      } else {
+          setLeaderboard([]);
+      }
+  }, [difficulty]);
+
+  useEffect(() => {
+      if (gameStatus === GameStatus.LEADERBOARD) {
+          fetchLeaderboard();
+      }
+  }, [gameStatus, fetchLeaderboard]);
+
 
   // Speed Calculation
   const calcDropTime = useCallback((lvl: number) => {
@@ -140,8 +228,41 @@ const App: React.FC = () => {
     setRows(0);
     setLevel(1);
     setFastDrop(false);
+    setIsUploaded(false); // Reset upload status
+    setPlayerName(''); // Reset name
     setGameStatus(GameStatus.PLAYING);
     appRef.current?.focus();
+  };
+
+  const uploadScore = async () => {
+      if (!playerName.trim() || isUploading || isUploaded) return;
+      
+      setIsUploading(true);
+      
+      try {
+        const { error } = await supabase.from('high_scores').insert([
+            { 
+                player_name: playerName.trim(), 
+                score: score, 
+                difficulty: difficulty 
+            }
+        ]);
+
+        setIsUploading(false);
+        if (!error) {
+            setIsUploaded(true);
+            // Refresh global high score if we beat it
+            if (score > globalHighScore) {
+                setGlobalHighScore(score);
+            }
+        } else {
+            console.error("Upload failed:", error);
+            alert("Upload failed. Please check internet connection.");
+        }
+      } catch (e) {
+          setIsUploading(false);
+          console.error(e);
+      }
   };
 
   const pauseGame = () => {
@@ -176,6 +297,10 @@ const App: React.FC = () => {
       if (player.pos.y < 1) {
         setGameStatus(GameStatus.GAME_OVER);
         setDropTime(null);
+        // Check if we beat the global high score locally immediately
+        if (score > globalHighScore) {
+            setGlobalHighScore(score);
+        }
       }
       setPlayer((prev) => ({ ...prev, collided: true }));
     }
@@ -305,13 +430,62 @@ const App: React.FC = () => {
   }, [player.collided, player.pos.x, player.pos.y, player.tetromino, resetPlayer, level, gameStatus, calcDropTime]);
 
   const renderScreenContent = () => {
+    // --- LEADERBOARD SCREEN ---
+    if (gameStatus === GameStatus.LEADERBOARD) {
+         return (
+             <div className={`flex flex-col h-full w-full p-2 ${theme === 'cyberpunk' ? 'text-cyan-400' : 'text-slate-800'}`}>
+                <div className="flex justify-between items-center mb-2 border-b border-current/20 pb-1">
+                    <button onClick={() => setGameStatus(GameStatus.HOME)} className="p-1 hover:opacity-70"><ChevronLeft size={16}/></button>
+                    <h2 className="text-sm font-bold tracking-widest">{t.leaderboard}</h2>
+                    <span className="text-[10px] font-mono opacity-70 border border-current px-1 rounded">{difficulty}</span>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                    {loadingLeaderboard ? (
+                        <div className="flex flex-col items-center justify-center h-40 gap-2 opacity-50">
+                            <Loader2 className="animate-spin" size={20}/>
+                            <span className="text-xs">{t.loading}</span>
+                        </div>
+                    ) : (
+                        <table className="w-full text-[10px] sm:text-xs border-collapse">
+                            <thead className="sticky top-0 bg-inherit z-10">
+                                <tr className="opacity-50 text-left border-b border-current/10">
+                                    <th className="pb-1 pl-1 w-8">#</th>
+                                    <th className="pb-1">{t.name}</th>
+                                    <th className="pb-1 text-right pr-1">{t.score}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {leaderboard.length === 0 ? (
+                                    <tr><td colSpan={3} className="text-center py-4 opacity-50">{t.noData}</td></tr>
+                                ) : (
+                                    leaderboard.map((entry, idx) => (
+                                        <tr key={entry.id} className={`${idx < 3 ? 'font-bold' : ''} border-b border-current/5`}>
+                                            <td className="py-1.5 pl-1">
+                                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                                            </td>
+                                            <td className="py-1.5 truncate max-w-[80px]">{entry.player_name}</td>
+                                            <td className="py-1.5 text-right pr-1 font-mono">{entry.score}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+             </div>
+         );
+    }
+
+    // --- HOME SCREEN ---
     if (gameStatus === GameStatus.HOME) {
         return (
-            <div className={`flex flex-col items-center justify-center h-full space-y-4 animate-in fade-in p-2 text-center ${theme === 'cyberpunk' ? 'text-cyan-400' : 'text-slate-800'}`}>
+            <div className={`flex flex-col items-center justify-center h-full space-y-3 animate-in fade-in p-2 text-center ${theme === 'cyberpunk' ? 'text-cyan-400' : 'text-slate-800'}`}>
                 <h1 className={`text-2xl sm:text-4xl font-black tracking-tighter ${theme === 'cyberpunk' ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]' : 'text-slate-800/80'}`}>
                     {t.title}
                 </h1>
                 
+                {/* Difficulty Select */}
                 <div className="flex flex-wrap justify-center gap-2">
                     {(['EASY', 'NORMAL', 'HARD'] as Difficulty[]).map((d) => (
                         <button
@@ -328,6 +502,7 @@ const App: React.FC = () => {
                     ))}
                 </div>
 
+                {/* Theme & Leaderboard Buttons */}
                 <div className="flex gap-2 bg-black/10 p-1 rounded-lg">
                     <button 
                         onClick={() => setTheme('retro')}
@@ -340,6 +515,13 @@ const App: React.FC = () => {
                         className={`p-1.5 rounded flex items-center gap-1 text-[9px] font-bold transition-all ${theme === 'cyberpunk' ? 'bg-cyan-900 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.4)]' : 'text-slate-400 hover:text-cyan-700'}`}
                     >
                         <Zap size={10}/> {t.themeCyber}
+                    </button>
+                    <div className="w-[1px] bg-white/20 mx-1"></div>
+                     <button 
+                        onClick={() => setGameStatus(GameStatus.LEADERBOARD)}
+                        className={`p-1.5 rounded flex items-center gap-1 text-[9px] font-bold transition-all ${theme === 'cyberpunk' ? 'text-yellow-400 hover:text-yellow-200' : 'text-amber-700 hover:text-amber-900'}`}
+                    >
+                        <Trophy size={10}/> {t.leaderboard}
                     </button>
                 </div>
 
@@ -363,6 +545,7 @@ const App: React.FC = () => {
         );
     }
     
+    // --- PLAYING / PAUSED / GAME OVER ---
     return (
         <div className="relative w-full h-full flex items-center justify-center">
             <Board board={board} theme={theme} />
@@ -372,9 +555,39 @@ const App: React.FC = () => {
                     <h2 className={`text-xl font-bold ${theme === 'cyberpunk' ? 'text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]' : 'text-[#9ead86]'}`}>
                         {gameStatus === GameStatus.GAME_OVER ? t.gameOver : t.paused}
                     </h2>
+                    
                     {gameStatus === GameStatus.GAME_OVER && (
-                        <p className={`font-mono text-lg ${theme === 'cyberpunk' ? 'text-purple-400' : 'text-[#9ead86]'}`}>{score}</p>
+                        <div className="flex flex-col items-center gap-2 mb-2 w-full max-w-[200px]">
+                            <p className={`font-mono text-3xl ${theme === 'cyberpunk' ? 'text-purple-400' : 'text-[#9ead86]'}`}>{score}</p>
+                            
+                            {/* Score Upload Form */}
+                            {!isUploaded ? (
+                                <div className="flex flex-col w-full gap-2 mt-2 p-2 bg-white/5 rounded border border-white/10">
+                                    <input 
+                                        type="text" 
+                                        maxLength={10}
+                                        placeholder={t.placeholder}
+                                        value={playerName}
+                                        onChange={(e) => setPlayerName(e.target.value)}
+                                        className="bg-transparent border-b border-white/30 text-center text-white text-sm py-1 outline-none font-mono focus:border-cyan-400 uppercase placeholder:text-white/20"
+                                    />
+                                    <button 
+                                        onClick={uploadScore}
+                                        disabled={!playerName.trim() || isUploading}
+                                        className="flex items-center justify-center gap-1 bg-white/10 hover:bg-white/20 text-white text-[10px] py-1.5 rounded transition-colors disabled:opacity-50"
+                                    >
+                                        {isUploading ? <Loader2 size={10} className="animate-spin"/> : <Upload size={10} />}
+                                        {t.upload}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="text-green-400 text-xs font-bold flex items-center gap-1 mt-2">
+                                    <Trophy size={12}/> {t.uploaded}
+                                </div>
+                            )}
+                        </div>
                     )}
+
                     <div className="flex flex-col gap-2 w-full max-w-[180px]">
                          {gameStatus === GameStatus.PAUSED && (
                              <button onClick={pauseGame} className="bg-white/10 text-white p-2 font-bold text-xs rounded-sm flex items-center justify-center gap-2 hover:bg-white/20 border border-white/20"><Play size={12}/> {t.resume}</button>
@@ -434,7 +647,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
                 
-                {/* Footer - Compact Layout */}
+                {/* Footer - Compact Layout with High Score */}
                 <div className={`flex-none mt-1 flex justify-between items-end transition-colors duration-500 ${theme === 'cyberpunk' ? 'text-cyan-500' : 'text-[#8b9c72]'}`}>
                     <div className="flex flex-col">
                          <span className="text-[9px] font-bold tracking-widest text-slate-500">{t.score}</span>
@@ -442,7 +655,15 @@ const App: React.FC = () => {
                             {score.toString().padStart(6, '0')}
                          </span>
                     </div>
-                    <h3 className="text-slate-600 font-bold italic tracking-tighter text-base hidden sm:block opacity-30">TETRIS</h3>
+                    
+                    {/* Center: High Score Display */}
+                    <div className="flex flex-col items-center">
+                         <span className="text-[8px] font-bold tracking-widest text-slate-600 mb-[1px]">{t.highScore}</span>
+                         <span className={`font-mono text-xs leading-none ${theme === 'cyberpunk' ? 'text-yellow-400' : 'text-[#8b9c72] opacity-80'}`}>
+                            {Math.max(score, globalHighScore).toString().padStart(6, '0')}
+                         </span>
+                    </div>
+
                     <div className="flex flex-col text-right">
                          <span className="text-[9px] font-bold tracking-widest text-slate-500">{t.level}</span>
                          <span className={`font-mono text-sm leading-none ${theme === 'cyberpunk' ? 'text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]' : 'text-indigo-400'}`}>

@@ -19,13 +19,22 @@ export enum GameStatus {
   HOME = 'HOME',
   PLAYING = 'PLAYING',
   PAUSED = 'PAUSED',
-  GAME_OVER = 'GAME_OVER'
+  GAME_OVER = 'GAME_OVER',
+  LEADERBOARD = 'LEADERBOARD'
 }
 
 export enum Difficulty {
   EASY = 'EASY',
   NORMAL = 'NORMAL',
   HARD = 'HARD'
+}
+
+export interface HighScore {
+  id: string;
+  player_name: string;
+  score: number;
+  difficulty: string;
+  created_at: string;
 }
 
 export type Language = 'zh' | 'en';
