@@ -1,0 +1,1 @@
+这是Tetris的React部分。配置请参考NEON-TETRIS-MOBILE的Readme文件
