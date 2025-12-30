@@ -10,9 +10,8 @@
     <a href="#-english">English</a> | <a href="#-中文">中文</a>
   </p>
 </div>
----
 
-这是Tetris的React部分。配置请参考NEON-TETRIS-MOBILE的Readme文件
+
 <a name="-english"></a>
 ## 📖 About The Project
 
