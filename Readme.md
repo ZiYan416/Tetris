@@ -1,3 +1,4 @@
+这是Tetris的React部分。配置请参考NEON-TETRIS-MOBILE的Readme文件
 <div align="center">
   <br />
   <h1>🧱 Neon Tetris Mobile</h1>
@@ -11,8 +12,6 @@
   </p>
 </div>
 ---
-
-## THIS REPOSITORIES IS THE PART OF REACT PROGRAM
 
 <a name="-english"></a>
 ## 📖 About The Project
