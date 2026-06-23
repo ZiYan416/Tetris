@@ -1,216 +1,163 @@
-<div align="center">
-  <br />
-  <h1>🧱 Neon Tetris Mobile</h1>
-  <h3>Retro · Cyberpunk Aesthetics · 俄罗斯方块</h3>
-  <p>
-    A high-fidelity, mobile-first Tetris clone featuring a dual visual engine, touch-optimized controls, and seamless Android integration.
-  </p>
+# Neon Blocks - Neon Tetris (Web & Android)
 
-  <p align="center">
-    <a href="#-english">English</a> | <a href="#-中文">中文</a>
-  </p>
+<div align="center">
+
+[![React](https://img.shields.io/badge/React-18.2.0-61DAFB?logo=react&logoColor=black&style=flat-square)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0.0-3178C6?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.2.0-646CFF?logo=vite&logoColor=white&style=flat-square)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+
+**一款专为现代浏览器和 Android 设备打造的高清、自适应、复古风格俄罗斯方块游戏。**
+
+[在线预览](https://your-app-name.netlify.app) · [报告问题](https://github.com/ZiYan416/Tetris/issues) · [提出改进](https://github.com/ZiYan416/Tetris/pulls)
+
 </div>
 
-
-<a name="-english"></a>
-## 📖 About The Project
-
-**Neon Tetris Mobile** is a hybrid application that bridges the gap between modern web technologies and native mobile experiences. Built with **React 19** and **TypeScript**, it runs within a native **Android WebView** container to provide an immersive, full-screen gaming experience.
-
-The project features a unique **Dual Visual Engine**:
-1.  **Retro Mode:** A soothing, Morandi-color palette inspired by vintage handheld consoles, designed to reduce eye strain.
-2.  **Cyberpunk Mode:** A high-contrast, neon-glowing aesthetic with dynamic lighting effects for a futuristic feel.
-
-### ✨ Key Features
-
-*   **Hybrid Architecture:** React frontend running inside a native Android Java wrapper.
-*   **Touch Optimization:** Custom virtual D-Pad and action buttons with 0-latency response.
-*   **Responsive Grid:** Dynamically calculates grid dimensions to fit any device aspect ratio.
-*   **Global Leaderboard:** Real-time high scores powered by **Supabase**.
-*   **Robust Network Handling:** Auto-retry logic for WebView connections (handling local dev server delays).
-*   **Immersive Mode:** Hides Android system bars for a console-like experience.
-
-## 🛠 Tech Stack
-
-*   **Frontend:** React 19, TypeScript, Tailwind CSS, Vite
-*   **Mobile:** Android SDK (Java), WebView, AndroidX
-*   **Backend:** Supabase (PostgreSQL)
-*   **Icons:** Lucide React
-
-## 🚀 Getting Started
-
-### Prerequisites
-*   **Node.js** (v18+)
-*   **Android Studio** (Koala or newer recommended)
-*   **JDK 11+**
-
-### 1. Web Development Setup
-
-First, you need to run the React application locally.
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/neon-tetris-mobile.git
-    cd neon-tetris-mobile
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-
-3.  **Configure Environment:**
-    Create a `.env` file in the root directory:
-    ```env
-    VITE_SUPABASE_URL=your_supabase_url
-    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-    ```
-
-4.  **Start the Dev Server:**
-    ```bash
-    npm run dev
-    ```
-    *Note: The server runs on port `8080` by default to match the Android configuration.*
-
-### 2. Android Studio Setup
-
-To run the app on an Android Emulator:
-
-1.  **Open the Project:**
-    *   Launch Android Studio.
-    *   Select **Open** and choose the `android` folder inside the project root.
-
-2.  **Sync Gradle:**
-    *   Allow Android Studio to download necessary SDK tools and sync Gradle dependencies.
-
-3.  **Configure Network (Important):**
-    *   The `MainActivity.java` is currently configured to point to `http://10.0.2.2:8080`.
-    *   `10.0.2.2` is the special alias address for the Android Emulator to access your computer's `localhost`.
-    *   **Ensure your React app (`npm run dev`) is running before launching the Android app.**
-
-4.  **Run the App:**
-    *   Select a Virtual Device (AVD) or connect a physical device via USB.
-    *   Click the **Run** (Green Play) button.
-
-*(If using a physical device, you must change `APP_URL` in `MainActivity.java` to your computer's local IP address, e.g., `http://192.168.1.5:8080`)*
-
-## 📦 Deployment
-
-### Web Deployment
-To deploy the game as a standalone PWA or web app:
-```bash
-npm run build
-```
-Upload the contents of the `dist` folder to Vercel, Netlify, or your preferred static host.
-
-### Android Release
-1.  **Update URL:** In `android/app/src/main/java/.../MainActivity.java`, change `APP_URL` from localhost to your deployed web URL (e.g., `https://neon-tetris.vercel.app`).
-2.  **Generate Signed APK:**
-    *   Go to **Build** -> **Generate Signed Bundle / APK**.
-    *   Create a keystore and follow the wizard to produce a release APK.
-
 ---
-
-<a name="-中文"></a>
 
 ## 📖 项目简介
 
-**Neon Tetris Mobile (霓虹方块)** 是一个融合现代 Web 技术与原生移动体验的混合应用。它使用 **React 19** 和 **TypeScript** 构建核心逻辑，并通过 **Android WebView** 容器运行，提供沉浸式的全屏游戏体验。
+**Neon Blocks** 是一款极具现代设计美感又保留了童年情怀的俄罗斯方块游戏。项目采用 **Mono-repo** 单仓库架构设计，前端基于 React + TypeScript + Vite 研发，并封装了原生的 Android 套壳外壳。
 
-本项目拥有一套独特的 **双重视觉引擎**：
-1.  **复古模式 (Retro):** 采用莫兰迪色系的怀旧掌机风格，视觉柔和，适合长时间游玩。
-2.  **赛博模式 (Cyberpunk):** 高对比度的霓虹辉光风格，伴随动态光影，极具未来感。
-
-### ✨ 核心功能
-
-*   **混合架构:** React 前端无缝嵌入原生 Android Java 容器。
-*   **触控优化:** 专为手机设计的零延迟虚拟十字键与操作按钮。
-*   **自适应网格:** 智能计算屏幕尺寸，适配任意比例的 Android 设备。
-*   **全球排行榜:** 基于 **Supabase** 的实时分数同步。
-*   **健壮的网络处理:** 内置 WebView 自动重连机制（支持断网重试与超时处理）。
-*   **沉浸模式:** 自动隐藏系统状态栏与导航栏，实现真·全屏体验。
-
-## 🛠 技术栈
-
-*   **前端:** React 19, TypeScript, Tailwind CSS, Vite
-*   **移动端:** Android SDK (Java), WebView, AndroidX
-*   **后端:** Supabase (PostgreSQL)
-*   **图标库:** Lucide React
-
-## 🚀 快速开始
-
-### 环境要求
-*   **Node.js** (v18+)
-*   **Android Studio** (建议 Koala 或更新版本)
-*   **JDK 11+**
-*   请注意！**不要**将你的项目配置在***中文（或带有任何非ASCII码）***的路径下！
-
-### 1. Web 前端配置
-
-首先需要在本地运行 React 应用。
-
-1.  **克隆仓库:**
-    ```bash
-    git clone https://github.com/your-username/neon-tetris-mobile.git
-    cd neon-tetris-mobile
-    ```
-
-2.  **安装依赖:**
-    ```bash
-    npm install
-    ```
-
-3.  **配置环境变量:**
-    在根目录创建 `.env` 文件:
-    ```env
-    VITE_SUPABASE_URL=你的_supabase_url
-    VITE_SUPABASE_ANON_KEY=你的_supabase_anon_key
-    ```
-
-4.  **启动开发服务器:**
-    ```bash
-    npm run dev
-    ```
-    *注意：服务器默认运行在 `8080` 端口，以便与 Android 配置匹配。*
-
-### 2. Android Studio 配置
-
-要在 Android 模拟器上运行应用：
-
-1.  **打开项目:**
-    *   启动 Android Studio。
-    *   选择 **Open** 并选中项目根目录下的 `android` 文件夹。
-
-2.  **Gradle 同步:**
-    *   等待 Android Studio 下载必要的 SDK 工具并完成 Gradle 同步。
-
-3.  **网络配置 (重要):**
-    *   `MainActivity.java` 目前配置为连接 `http://10.0.2.2:8080`。
-    *   `10.0.2.2` 是 Android 模拟器访问电脑本机 `localhost` 的特殊别名地址。
-    *   **在启动 Android App 之前，请确保你的 React 服务 (`npm run dev`) 正在运行。**
-*   *或者，当你的服务跑在互联网上时，你也可以使用域名来连接。*
-    
-4.  **运行应用:**
-    *   选择一个虚拟设备 (AVD) 或通过 USB 连接真机。
-    *   点击 **Run** (绿色三角形) 按钮。
-
-*(如果使用真机调试，你需要将 `MainActivity.java` 中的 `APP_URL` 修改为你电脑的局域网 IP 地址，例如 `http://192.168.1.5:8080`)*
-
-## 📦 部署指南
-
-### Web 发布
-若要将游戏作为独立 PWA 或网页发布：
-```bash
-npm run build
-```
-将 `dist` 文件夹的内容上传至 Vercel, Netlify 或你的静态服务器。
-
-### Android 打包发布
-1.  **更新地址:** 修改 `android/app/src/main/java/.../MainActivity.java` 中的 `APP_URL`，将其从 localhost 改为你的线上部署地址（如 `https://neon-tetris.vercel.app`）。
-2.  **生成签名 APK:**
-    *   点击菜单栏 **Build** -> **Generate Signed Bundle / APK**。
-    *   创建密钥库 (Keystore) 并按照向导生成 Release 版本的 APK 文件。
+本项目的核心亮点在于**极致的自适应体验**：
+- 在 **电脑端** 打开时，它是一款自适应屏幕的高清俄罗斯方块网页；
+- 在 **移动端（手机浏览器或 Android App）** 打开时，它会瞬间转化为一台精致的**复古经典掌上游戏机**，带给你真实的实体按键触觉反馈与怀旧的视觉效果。
 
 ---
 
-Designed & Developed with ❤️ by [荔冰酪]
+## ✨ 核心特性
+
+- 🕹️ **双重自适应布局**：自动检测屏幕尺寸，小屏设备自动激活“复古掌机”外壳，带完整的虚拟 D-Pad 与旋转/加速按键。
+- 🎨 **双生主题切换**：
+  - **Retro Theme**：绿底黑字的怀旧液晶屏风格，配备经典的扫描线（Scanlines）和 LCD 点阵滤镜。
+  - **Cyberpunk Theme**：高饱和的霓虹科幻风格，配合深色暗黑背景与发光特效。
+- 🏆 **全球在线排行榜**：基于 **Supabase** 实时数据库，记录不同难度（简单/普通/困难）下的全球排名前十的玩家得分。
+- 🌐 **多语言支持**：原生支持中文与英文一键切换，按钮、状态、排行榜全面本地化。
+- 📱 **原生 Android 套壳**：轻量级 Java WebView 原生外壳，完美支持沉浸式全面屏隐藏状态栏，本地流畅运行。
+- ⌨️ **全键盘/触屏支持**：电脑上支持键盘按键操作（方向键控制，ESC暂停），移动端支持丝滑的 Pointer 事件虚拟按键。
+
+---
+
+## 🛠️ 技术栈
+
+### 前端网页端 (`React Project`)
+- **核心框架**：React 18 & TypeScript
+- **构建工具**：Vite 5 (极速热重载)
+- **样式方案**：Tailwind CSS (响应式与主题控制)
+- **图标资源**：Lucide React
+- **数据库/后端**：Supabase (实现免服实时排行榜)
+
+### 安卓套壳端 (`Android Project`)
+- **核心开发**：Android SDK (Java)
+- **布局容器**：ConstraintLayout + WebView
+- **优化技术**：沉浸式隐藏状态栏、启用 DOM 存储与 JS 混合内容支持
+
+---
+
+## 🚀 快速开始
+
+### 前提条件
+
+- [Node.js](https://nodejs.org/) (推荐 v18 或更高版本)
+- [Android Studio](https://developer.android.com/studio) (仅限开发安卓 App 版本)
+
+---
+
+### 1. 前端网页开发环境配置
+
+1. **克隆仓库**：
+   ```bash
+   git clone git@github.com:ZiYan416/Tetris.git
+   cd Tetris
+   ```
+
+2. **安装项目依赖**：
+   ```bash
+   npm install
+   ```
+
+3. **配置环境变量**：
+   在根目录下创建一个 `.env.local` 文件，填入你的 Supabase 连接信息：
+   ```env
+   VITE_SUPABASE_URL=你的_SUPABASE_项目_URL
+   VITE_SUPABASE_ANON_KEY=你的_SUPABASE_匿名_ANON_KEY
+   ```
+
+4. **启动本地开发服务器**：
+   ```bash
+   npm run dev
+   ```
+   启动后，可在浏览器访问：`http://localhost:8080` 进行本地调试。由于开发模式下开启了局域网暴露 (`host: true`)，你也可以在局域网内的其他设备上通过 IP 访问。
+
+5. **项目打包生成**：
+   ```bash
+   npm run build
+   ```
+   打包完成后，会将静态文件生成在 `dist/` 文件夹中。
+
+---
+
+### 2. 安卓 App 开发与调试
+
+安卓项目位于根目录的 `/android` 文件夹下，可以直接使用 **Android Studio** 打开。
+
+#### A. 切换调试网址 (重要)
+打开文件 `/android/app/src/main/java/com/example/neonblocks/MainActivity.java`：
+
+```java
+// 1. 本地联调模式（需先启动本地 React 服务器 npm run dev）：
+webView.loadUrl("http://10.0.2.2:8080"); // 10.0.2.2 是安卓模拟器访问宿主机 localhost 的专用 IP
+
+// 2. 生产发布模式（使用 Netlify 部署的线上网页地址）：
+// webView.loadUrl("https://your-app-name.netlify.app");
+```
+
+#### B. 编译运行
+1. 打开 Android Studio 并导入 `android/` 目录。
+2. 启动 Android 虚拟设备（AVD）。
+3. 点击 **Run** 按钮，App 会自动部署到模拟器中并自动隐藏通知栏和虚拟导航栏，进入沉浸式俄罗斯方块掌机模式。
+
+---
+
+## 🗄️ Supabase 数据库表配置
+
+为使排行榜功能正常运作，你需要在你的 Supabase 数据库中创建以下表格：
+
+### 1. 数据表：`high_scores`
+
+| 列名 | 数据类型 | 默认值 | 允许空 | 说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | bigint (Primary Key) | 自动生成 | 否 | 唯一标识符 |
+| `created_at` | timestamp with time zone | now() | 否 | 创建时间 |
+| `player_name` | text | - | 否 | 玩家昵称 (最大长度 10 字符) |
+| `score` | integer | - | 否 | 游戏得分 |
+| `difficulty` | text | - | 否 | 游戏难度 (EASY, NORMAL, HARD) |
+
+### 2. 安全策略 (RLS)
+由于是免服的前端直连数据库，请确保开启 `high_scores` 表的 **RLS (Row Level Security)** 策略，并为公众 (anon) 配置以下权限：
+- **SELECT**：允许所有用户读取数据（用于排行榜展示）。
+- **INSERT**：允许所有用户插入数据（用于玩家上传高分）。
+- **UPDATE / DELETE**：拒绝所有用户（防止分数被非法篡改或清空）。
+
+---
+
+## ☁️ Netlify 持续部署 (CI/CD)
+
+项目在推送至 GitHub 时，可以通过 Netlify 开启自动构建。
+
+1. 在 Netlify 新建站点，并关联你的 `ZiYan416/Tetris` GitHub 仓库。
+2. 在 **Build settings** 中，进行如下配置：
+   - **Base directory**: `留空` (直接使用根目录)
+   - **Build command**: `npm run build`
+   - **Publish directory**: `dist`
+3. 在 **Environment variables** 中，配置你第 1 步中相同的 Supabase 环境变量：
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. 点击部署。每次你推送到 `main` 分支，Netlify 将自动重新构建，无需改变安卓端的外壳网址。
+
+---
+
+## 📄 开源许可证
+
+本项目基于 **MIT License** 开源。详情参见 [LICENSE](LICENSE) 文件。

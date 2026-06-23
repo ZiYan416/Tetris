@@ -1,3 +1,15 @@
+# Dependency directories
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Environment variables
+.env
+.env.*
+
 # Logs
 logs
 *.log
@@ -7,23 +19,27 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Android build and local settings
+.gradle/
+local.properties
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/.idea/
+*.apk
+*.aar
+*.ap_
+.cxx/
+*.keystore
+*.jks
